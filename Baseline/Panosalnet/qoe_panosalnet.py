@@ -11,11 +11,12 @@ dataset = int(sys.argv[1])
 topic = sys.argv[2]
 fps=int(sys.argv[3])
 pref_quality = sys.argv[4]
+
 nusers=0
 matrix_error, manhattan_error, x_mae, y_mae, final_qoe = [],[],[],[],[]
 save = './Predicted/QoE_Graphs/ds{}/'.format(dataset)
 path_act = 'Viewport/ds{}/'.format(dataset)
-path_pred = 'PanoSalNet/head_prediction/ds{}/'.format(dataset)
+path_pred = './head_prediction/ds{}/'.format(dataset)
 
 player_width = 600
 player_height = 300
@@ -34,21 +35,22 @@ elif dataset == 2:
 	view_width = 2560.0
 	view_height = 1440.0
 	milisec = 1.0
-else:
-	nusers=4
 
 ncol_tiles = 16
 nrow_tiles = 9
 
 player_tiles_x = math.ceil(player_width*ncol_tiles*1.0/width)
 player_tiles_y = math.ceil(player_height*nrow_tiles*1.0/height)
-print(player_tiles_x, player_tiles_y)
 
 bitrates = {'360p':1, '480p':2.5, '720p':5, '1080p':8, '1440p':16}
 pref_bitrate = bitrates[pref_quality]
 
 
+
 def get_act_tiles(view_info, frame_nos):
+	"""
+	Calculate the tiles corresponding to the viewport
+	"""
 	act_viewport = []
 	max_frame = int(view_info[-1][0]*1.0*fps/milisec)
 
@@ -72,6 +74,9 @@ def get_act_tiles(view_info, frame_nos):
 
 
 def get_chunks(act_viewport, pred_viewport, frame_nos, max_frame):
+	"""
+	For chunks of fps number of frames for actual as well as predicted viewports
+	"""
 	act_tiles,pred_tiles,chunk_frames = [],[],[]
 	chunk_size = fps
 	number_of_chunks = int(len(act_viewport) / chunk_size)
@@ -94,7 +99,6 @@ def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 	weight_1 = 1
 	weight_2 = 1
 	weight_3 = 1
-
 
 	# PLayer viewport size
 	player_width = 600
@@ -141,20 +145,20 @@ def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 
 			qoe_1 += local_qoe / tot_tiles
 			if(len(local_rate)>0):
-				qoe_4 += np.std(local_rate)
+				qoe_2 += np.std(local_rate)
 
 			rate.append(local_qoe / tot_tiles)
 
 		tile_count = 1 if tile_count==0 else tile_count
 		qoe_1 /= tile_count
-		qoe_4 /= tile_count
-
-		if(len(rate)>0):
-			qoe_2 = np.std(rate)
 		qoe_2 /= tile_count
 
+		if(len(rate)>0):
+			qoe_3 = np.std(rate)
+		qoe_3 /= tile_count
+
 		if(i>0):
-			qoe_3 = abs(prev_qoe_1 - qoe_1)
+			qoe_4 = abs(prev_qoe_1 - qoe_1)
 
 		qoe += qoe_1 - weight_1*qoe_2 - weight_2*qoe_3 - weight_3*qoe_4
 		prev_qoe_1 = qoe_1
@@ -166,7 +170,6 @@ total_error1, total_error2, count_frames = 0,0,0
 
 for usernum in range(nusers):
 	print('User_{}'.format(usernum))
-	user_matrix_error = 0.
 	user_manhattan_error = 0.
 
 
@@ -222,26 +225,10 @@ for usernum in range(nusers):
 	count_frames += len(act_viewport)
 
 
-	# Calculate Matrix Error
-	for fr in range(len(pred_viewport)):
-		act_tile = act_viewport[fr]
-		act_prob = np.array([[0. for i in range(ncol_tiles)] for j in range(nrow_tiles)])
-		act_prob[act_tile[0]][act_tile[1]] = 1
-		pred_prob = np.array(pred_viewport[fr])
-		pred_prob /= sum(sum(x) for x in pred_prob)
-
-		d=0.
-		for i in range(nrow_tiles):
-			for j in range(ncol_tiles):
-				d += np.square(pred_prob[i][j] - act_prob[i][j])
-		user_matrix_error += np.sqrt(d)
-
-	matrix_error.append(user_matrix_error/len(pred_viewport))
-
-
 	act_tiles, pred_tiles, chunk_frames = get_chunks(act_viewport, pred_viewport, frame_nos, max_frame)
 
 
+	# Allocate bitrate
 	vid_bitrate = []
 	for i in range(len(chunk_frames)):
 		chunk = chunk_frames[i]
@@ -260,20 +247,19 @@ for usernum in range(nusers):
 
 		vid_bitrate.append(chunk_bitrate)
 
+	# Calculate QoE
 	q = calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames)
 	final_qoe.append(q)
 
 
 avg_qoe = np.mean(final_qoe)
 avg_manhattan_error = np.mean(manhattan_error)
-avg_matrix_error = np.mean(matrix_error)
 
 print('Topic: '+topic)
 print('PanoSalNet')
 print('Pred_nframe: {}'.format(fps))
 print('Avg. QoE: {}'.format(avg_qoe))
 print('Avg. Manhattan error: {}'.format(avg_manhattan_error))
-print('Avg. Matrix Error: {}'.format(avg_matrix_error))
 print('Total Error 1: {}'.format(total_error1))
 print('Total Error 2: {}'.format(total_error2))
 print('Count: {}'.format(count_frames))

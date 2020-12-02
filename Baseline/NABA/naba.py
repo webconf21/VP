@@ -7,9 +7,9 @@ import pickle
 dataset = int(sys.argv[1])
 topic = sys.argv[2]
 fps=int(sys.argv[3])
-offset=int(sys.argv[4])
+offset=int(sys.argv[4])	
 pref_quality = sys.argv[5]
-fps_fraction = float(sys.argv[6])
+fps_fraction = float(sys.argv[6])	# determines the prediction window, fraction k will lead to a prediction window of fps*k
 
 usernum=1
 ncol_tiles=8
@@ -41,9 +41,7 @@ player_tiles_y = math.ceil(player_height*nrow_tiles*1.0/height)
 
 def get_data(data, frame_nos, dataset, topic, usernum):
 
-	obj_info = np.load('Obj_traj/ds{}/ds{}_topic{}.npy'.format(dataset, dataset, topic), allow_pickle=True,  encoding='latin1').item()
 	view_info = pickle.load(open('Viewport/ds{}/viewport_ds{}_topic{}_user{}'.format(dataset, dataset, topic, usernum), 'rb'), encoding='latin1')
-
 	max_frame = int(view_info[-1][0]*1.0*fps/milisec)
 
 	for i in range(len(view_info)-1):
@@ -65,14 +63,17 @@ def get_data(data, frame_nos, dataset, topic, usernum):
 	return data, frame_nos, max_frame
 
 
-def build_model(data, frame_nos, max_frame):
-	count=0
 
+def tiling(data, frame_nos, max_frame):
+	"""
+	Calculate the tiles corresponding to the viewport and segment them into different chunks
+	"""
+	count=0
 	i=0
-	act_tiles, pred_tiles = [],[]
+	act_tiles = []
 	chunk_frames = []
 
-	#Initial training of first 5 seconds
+	# Leaving the first 5 seconds ( to keep consistent with our model)
 	while True:
 		curr_frame=frame_nos[i]
 		if curr_frame<5*fps:
@@ -82,13 +83,14 @@ def build_model(data, frame_nos, max_frame):
 			break
 
 
-	# Predicting frames and update model
+	# Calulate the tiles and store it in chunks
 	while True:
 		curr_frame = frame_nos[i]
 		nframe = min(pred_nframe, max_frame - frame_nos[i])
 		if(nframe <= 0):
 			break
-
+		
+		# Add the frames that will be in the current chunk
 		frames = {i}
 		for k in range(i+1, len(frame_nos)):
 			if(frame_nos[k] < curr_frame + nframe):
@@ -105,29 +107,31 @@ def build_model(data, frame_nos, max_frame):
 		frames = sorted(frames)
 		chunk_frames.append(frames)
 
-		# Get act_tile
+		# Get the actual tile
 		for k in range(len(frames)):
 			[inp_k, x_act, y_act] = data[frames[k]]
-			print(x_act, y_act)
+			# print(x_act, y_act)
 
 			actual_tile_col = int(x_act * ncol_tiles / width)
 			actual_tile_row = int(y_act * nrow_tiles / height)
-			print(actual_tile_col, actual_tile_row)
+			# print(actual_tile_col, actual_tile_row)
 
 			actual_tile_row = actual_tile_row-nrow_tiles if(actual_tile_row >= nrow_tiles) else actual_tile_row
 			actual_tile_col = actual_tile_col-ncol_tiles if(actual_tile_col >= ncol_tiles) else actual_tile_col
 			actual_tile_row = actual_tile_row+nrow_tiles if actual_tile_row < 0 else actual_tile_row
 			actual_tile_col = actual_tile_col+ncol_tiles if actual_tile_col < 0 else actual_tile_col
-			print(actual_tile_col, actual_tile_row)
-
-			print()
-
+			# print(actual_tile_col, actual_tile_row)
+			# print()
 			act_tiles.append((actual_tile_row, actual_tile_col))
 
-	return act_tiles, pred_tiles, chunk_frames
+	return act_tiles, chunk_frames
 
 
-def alloc_bitrate(pred_tiles, frame_nos, chunk_frames, pref_quality):
+
+def alloc_bitrate(frame_nos, chunk_frames, pref_quality):
+	"""
+	Allocates equal bitrate to all the tiles
+	"""
 	vid_bitrate = []
 
 	for i in range(len(chunk_frames)):
@@ -135,9 +139,7 @@ def alloc_bitrate(pred_tiles, frame_nos, chunk_frames, pref_quality):
 		chunk_bitrate = [[-1 for x in range(ncol_tiles)] for y in range(nrow_tiles)]
 		chunk_weight = [[1. for x in range(ncol_tiles)] for y in range(nrow_tiles)]
 
-
 		total_weight = sum(sum(x) for x in chunk_weight)
-
 
 		for x in range(nrow_tiles):
 			for y in range(ncol_tiles):
@@ -148,6 +150,7 @@ def alloc_bitrate(pred_tiles, frame_nos, chunk_frames, pref_quality):
 	return vid_bitrate
 
 
+
 def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 	print("####")
 	qoe = 0
@@ -156,7 +159,7 @@ def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 	weight_2 = 1
 	weight_3 = 1
 	tot1,tot2,tot3,tot4 = 0,0,0,0
-	# PLayer viewport size
+	
 	tile_width = width/ncol_tiles
 	tile_height = height/nrow_tiles
 
@@ -182,10 +185,10 @@ def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 			# Find the number of tiles that can be accomodated from the center of the viewport
 			n_tiles_width = math.ceil((player_width/2 - tile_width/2)/tile_width)
 			n_tiles_height = math.ceil((player_height/2 - tile_height/2)/tile_height)
-			tot_tiles = (2*n_tiles_width+1)*(2*n_tiles_height+1)
+			tot_tiles = (2 * n_tiles_width+1) * (2 * n_tiles_height+1)
 
 			local_qoe = 0
-			local_rate = []  # a new metric to get the standard deviation of bitrate within the player view
+			local_rate = []  # a new metric to get the standard deviation of bitrate within the player view (qoe2)
 			for x in range(2*n_tiles_height+1):
 				for y in range(2*n_tiles_width+1):
 					sub_row = row - n_tiles_height + x
@@ -201,28 +204,27 @@ def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 
 			qoe_1 += local_qoe / tot_tiles
 			if(len(local_rate)>0):
-				qoe_4 += np.std(local_rate)
+				qoe_2 += np.std(local_rate)
 
 			rate.append(local_qoe / tot_tiles)
 
 		tile_count = 1 if tile_count==0 else tile_count
 		qoe_1 /= tile_count
-		qoe_4 /= tile_count
-
-		if(len(rate)>0):
-			qoe_2 = np.std(rate)
 		qoe_2 /= tile_count
 
-		if(i>0):
-			qoe_3 = abs(prev_qoe_1 - qoe_1)
+		if(len(rate)>0):
+			qoe_3 = np.std(rate)
+		qoe_3 /= tile_count
 
-		print(qoe_1, tile_count)
+		if(i>0):
+			qoe_4 = abs(prev_qoe_1 - qoe_1)
+
 		qoe += qoe_1 - weight_1*qoe_2 - weight_2*qoe_3 - weight_3*qoe_4
 		prev_qoe_1 = qoe_1
-		tot1+=qoe_1
-		tot2+=qoe_2
-		tot3+=qoe_3
-		tot4+=qoe_4
+		tot1 += qoe_1
+		tot2 += qoe_2
+		tot3 += qoe_3
+		tot4 += qoe_4
 
 	return qoe,tot1,tot2,tot3,tot4
 
@@ -232,8 +234,9 @@ def main():
 	data, frame_nos = [],[]
 	data, frame_nos, max_frame = get_data(data, frame_nos, dataset, topic, usernum)
 
-	act_tiles,pred_tiles,chunk_frames = build_model(data, frame_nos, max_frame)
+	act_tiles, chunk_frames = tiling(data, frame_nos, max_frame)
 
+	# To be consistent with our model
 	i = 0
 	while True:
 		curr_frame=frame_nos[i]
@@ -243,8 +246,8 @@ def main():
 			break
 
 	frame_nos = frame_nos[i:]
-	vid_bitrate = alloc_bitrate(pred_tiles, frame_nos, chunk_frames, pref_quality)
-	qoe = calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames)
+	vid_bitrate = alloc_bitrate(frame_nos, chunk_frames, pref_quality)
+	qoe,_,_,_,_ = calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames)
 
 	print(qoe)
 
