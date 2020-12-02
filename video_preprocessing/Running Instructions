@@ -1,0 +1,39 @@
+----------------------
+vrProjectorWrapper.py (folder FrameProjector):
+----------------------
+python vrProjectorWrapper.py --source <<video name>> --out 1024
+
+eg: python vrProjectorWrapper.py --source paris.mp4 --out 1024
+Output: Folder containing the cubemap projection with name paris
+
+------------------
+StitchingFrames.py (folder FrameProjector):
+------------------
+python StitchingFrames.py --dirPath <<folder containing cubemap projections and actual frames>> --out 1024
+
+eg: python StitchingFrames.py --dirPath paris --out 1024
+Output: Folder containing the stitched cubemap projection with name paris_stitched
+
+---------------------------------
+StitchedObjectDetectionWrapper.py (folder YOLO):
+----------------------------------
+python StitchedObjectDetectionWrapper.py --source <<source directory with stitched images>> --output <<outputfilename>>
+
+eg: python StitchedObjectDetectionWrapper.py --source ../FrameProjector/paris_stitched/ --output paris_obj.txt
+Output: Object info in paris_obj.txt
+
+--------------------------------
+StitchedBoundingBoxConverter.py (folder FrameProjector)
+--------------------------------
+python StitchedBoundingBoxConverter.py --source <<sourceFileName>> --cubeMapDim 1024 --dirPath <<directory with frames>>
+
+eg: python StitchedBoundingBoxConverter.py --source ../YOLO/paris_obj.txt --cubeMapDim 1024 --dirPath paris
+Output: Equirectangular Projected Bounding Boxes in ../YOLO/paris_obj_equirectangular.txt
+
+--------------------------------
+ObjectTracker.py (folder Object Tracking)
+--------------------------------
+python tracker.py --sourceFile <<sourceFileName>> --dirPath <<directory with frames>> --outputnpy <<outputfilename>>
+
+eg: python tracker.py --sourceFile ../YOLO/paris_obj_equirectangular.txt --dirPath ../FrameProjector/paris --outputnpy paris_obj_traj.npy
+Output: Object trajectories npy file
