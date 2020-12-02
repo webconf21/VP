@@ -41,27 +41,53 @@ player_tiles_y = math.ceil(player_height*nrow_tiles*1.0/height)
 
 def get_data(data, frame_nos, dataset, topic, usernum):
 
-	view_info = pickle.load(open('Viewport/ds{}/viewport_ds{}_topic{}_user{}'.format(dataset, dataset, topic, usernum), 'rb'), encoding='latin1')
-	max_frame = int(view_info[-1][0]*1.0*fps/milisec)
+	view_info = pickle.load(open('../../Viewport/ds{}/viewport_ds{}_topic{}_user{}'.format(dataset, dataset, topic, usernum), 'rb'), encoding='latin1')
 
-	for i in range(len(view_info)-1):
-		frame = int(view_info[i][0]*1.0*fps/milisec)
-		frame += int(offset*1.0*fps/milisec)
+	if dataset == 1:
+		max_frame = int(view_info[-1][0]*1.0*fps/milisec)
 
-		if frame > 70*fps:
-			break
+		for i in range(len(view_info)-1):
+			frame = int(view_info[i][0]*1.0*fps/milisec)
+			frame += int(offset*1.0*fps/milisec)
 
-		frame_nos.append(frame)
-		if(frame > max_frame):
-			break
-		X={}
-		X['VIEWPORT_x']=int(view_info[i][1][1]*width/view_width)
-		X['VIEWPORT_y']=int(view_info[i][1][0]*height/view_height)
+			frame_nos.append(frame)
+			if(frame > max_frame):
+				break
+			X={}
+			X['VIEWPORT_x']=int(view_info[i][1][1]*width/view_width)
+			X['VIEWPORT_y']=int(view_info[i][1][0]*height/view_height)
+			data.append((X, int(view_info[i+1][1][1]*width/view_width),int(view_info[i+1][1][0]*height/view_height)))
 
-		data.append((X, int(view_info[i+1][1][1]*width/view_width),int(view_info[i+1][1][0]*height/view_height)))
-	
+	elif dataset == 2:
+		for k in range(len(view_info)-1):
+			if view_info[k][0]<=offset+60 and view_info[k+1][0]>offset+60:
+				max_frame = int(view_info[k][0]*1.0*fps/milisec)
+				break
+		
+		for k in range(len(view_info)-1):
+			if view_info[k][0]<=offset and view_info[k+1][0]>offset:
+				min_index = k+1
+				break	
+
+		prev_frame = 0
+		for i in range(min_index,len(view_info)-1):
+			frame = int((view_info[i][0])*1.0*fps/milisec)
+
+			if frame == prev_frame:
+				continue
+			
+			if(frame > max_frame):
+				break
+
+			frame_nos.append(frame)
+			
+			X={}
+			X['VIEWPORT_x']=int(view_info[i][1][1]*width/view_width)
+			X['VIEWPORT_y']=int(view_info[i][1][0]*height/view_height)
+			data.append((X, int(view_info[i+1][1][1]*width/view_width),int(view_info[i+1][1][0]*height/view_height)))
+			prev_frame = frame
+			
 	return data, frame_nos, max_frame
-
 
 
 def tiling(data, frame_nos, max_frame):

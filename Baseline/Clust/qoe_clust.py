@@ -25,13 +25,23 @@ milisec = 1.0
 player_tiles_x = math.ceil(player_width*ncol_tiles*1.0/width)
 player_tiles_y = math.ceil(player_height*nrow_tiles*1.0/height)
 
-def min_manhattan(act, pred):               # Get minimum manhattan distance
+
+
+def min_manhattan(act, pred):
+	"""
+	Get minimum manhattan distance
+	"""
 	x_min = min(abs(pred[0]-act[0]), abs(pred[0]+ncol_tiles-act[0]), (abs(pred[0]-ncol_tiles-act[0])))
 	y_min = min(abs(pred[1]-act[1]), abs(pred[1]+nrow_tiles-act[1]), (abs(pred[1]-nrow_tiles-act[1])))
 	return x_min + y_min
 
-#Allocate bitrate based on pyramid scheme
+
+
+
 def alloc_bitrate(pred_tiles, frame_nos, chunk_frames, pref_quality):
+	"""
+	Allocate bitrate based on pyramid scheme
+	"""
 	vid_bitrate = []
 
 	for i in range(len(chunk_frames)):
@@ -80,6 +90,8 @@ def alloc_bitrate(pred_tiles, frame_nos, chunk_frames, pref_quality):
 
 	return vid_bitrate
 
+
+
 # Calculate QoE of user
 def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 	qoe = 0
@@ -88,7 +100,6 @@ def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 	weight_2 = 1
 	weight_3 = 1
 	tot1,tot2,tot3,tot4=0,0,0,0
-	# PLayer viewport size
 	
 	tile_width = width/ncol_tiles
 	tile_height = height/nrow_tiles
@@ -156,6 +167,7 @@ def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames):
 		tot4+=qoe_4
 
 	return qoe,tot1,tot2,tot3,tot4
+
 
 
 def main():
@@ -229,29 +241,14 @@ def main():
 		qoe,qoe1,qoe2,qoe3,qoe4 = calc_qoe (vid_bitrate, act_viewport_tile[u], frame_nos, chunk_frames)
 		total_qoe = total_qoe + qoe
 		
-		user_matrix_error = 0
-		for i in range(len(pred_tiles)):
-			predtl = pred_tiles[i]
-			actl = act_tiles[i]
-			act_prob = np.array([[0. for i in range(ncol_tiles)] for j in range(nrow_tiles)])
-			pred_prob = np.array([[0. for i in range(ncol_tiles)] for j in range(nrow_tiles)])
-			pred_prob[predtl[0]][predtl[1]] = 1
-			act_prob[actl[0]][actl[1]] = 1
-			d = 0.
-			for i in range(nrow_tiles):
-				for j in range(ncol_tiles):
-					d += np.square(pred_prob[i][j] - act_prob[i][j])
-			user_matrix_error += np.sqrt(d)
-
-		total_matrix_error = total_matrix_error + user_matrix_error/len(pred_tiles)                           # Get matrix error
-
 
 	avg_qoe = total_qoe / len(pred_viewport.keys())
 	avg_manhattan = total_manhattan / len(pred_viewport.keys())	
 	avg_matrix_error = total_matrix_error / len(pred_viewport.keys())
 	print('QoE: ', avg_qoe)
-	print('Matrix Error: ', avg_matrix_error)
 	print('Manhattanerror: ', avg_manhattan)
+
+
 
 if __name__ == "__main__":
 	main()
