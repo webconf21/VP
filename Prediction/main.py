@@ -6,7 +6,7 @@ import pickle
 import random
 import warnings
 import time
-from parima import build_model
+from pa import build_model
 from bitrate import alloc_bitrate
 from qoe import calc_qoe
 
