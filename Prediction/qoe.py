@@ -59,20 +59,20 @@ def calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames, width, height, nro
 
 			qoe_1 += local_qoe / tot_tiles
 			if(len(local_rate)>0):
-				qoe_4 += np.std(local_rate)
+				qoe_2 += np.std(local_rate)
 
 			rate.append(local_qoe / tot_tiles)
 
 		tile_count = 1 if tile_count==0 else tile_count
 		qoe_1 /= tile_count
-		qoe_4 /= tile_count
-
-		if(len(rate)>0):
-			qoe_2 = np.std(rate)
 		qoe_2 /= tile_count
 
+		if(len(rate)>0):
+			qoe_3 = np.std(rate)
+		qoe_3 /= tile_count
+
 		if(i>0):
-			qoe_3 = abs(prev_qoe_1 - qoe_1)
+			qoe_4 = abs(prev_qoe_1 - qoe_1)
 
 		qoe += qoe_1 - weight_1*qoe_2 - weight_2*qoe_3 - weight_3*qoe_4
 		prev_qoe_1 = qoe_1

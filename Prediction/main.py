@@ -90,8 +90,11 @@ def get_data(data, frame_nos, dataset, topic, usernum):
 
 def main():
 	data, frame_nos = [],[]
+	print("Reading Viewport Data and Object Trajectories...")
 	data, frame_nos, max_frame, tot_objects = get_data(data, frame_nos, dataset, topic, usernum)
-
+	print("Data read\n")
+	
+	print("Build Model...")
 	act_tiles, pred_tiles, chunk_frames, manhattan_error, x_mae, y_mae = build_model(data, frame_nos, max_frame, tot_objects, width, height, nrow_tiles, ncol_tiles, fps, pred_nframe)
 
 	i = 0
@@ -103,7 +106,10 @@ def main():
 			break
 
 	frame_nos = frame_nos[i:]
+	print("Allocate Bitrates...")
 	vid_bitrate = alloc_bitrate(pred_tiles, frame_nos, chunk_frames, pref_quality, nrow_tiles, ncol_tiles, pref_bitrate)
+	
+	print("Calculate QoE...")
 	qoe = calc_qoe(vid_bitrate, act_tiles, frame_nos, chunk_frames, width, height, nrow_tiles, ncol_tiles)
 
 	print(qoe)
