@@ -14,7 +14,6 @@ import pickle
 from parima import build_model
 from bitrate import alloc_bitrate
 from qoe import calc_qoe
-import matplotlib.pyplot as plt
 
 # fps fraction is the fraction of fps to be taken as chunk size (essentially the chunk size in seconds) Keep 1 as default
 dataset = int(sys.argv[1])
@@ -227,20 +226,3 @@ print('Count',sum(count_frame))
 
 print('\n\n')
 
-plt.figure()
-plt.plot(avg_manhattan_error, marker='.', color='b')
-plt.xlabel('Chunks')
-plt.ylabel('Manhattan Tile Error')
-plt.savefig(save + 'Manhattan/topic{}_{}.png'.format(topic,str(int(fps*fps_fraction))))
-
-plt.figure()
-plt.plot(avg_x_mae, marker='.', color='r')
-plt.xlabel('Chunks')
-plt.ylabel('X_MAE')
-plt.savefig(save + 'X_MAE/topic{}_{}.png'.format(topic,str(int(fps*fps_fraction))))
-
-plt.figure()
-plt.plot(avg_y_mae, marker='.', color='g')
-plt.xlabel('Chunks')
-plt.ylabel('Y_MAE')
-plt.savefig(save + 'Y_MAE/topic{}_{}.png'.format(topic,str(int(fps*fps_fraction))))
